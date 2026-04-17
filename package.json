@@ -1,0 +1,29 @@
+{
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,cyan \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:web": "vite --host 0.0.0.0",
+    "dev:api": "node server.js --api-only",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "concurrently": "latest",
+    "cors": "latest",
+    "express": "latest",
+    "lucide-react": "latest",
+    "multer": "^2.1.1",
+    "nodemailer": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "stripe": "^22.0.2",
+    "typescript": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}
