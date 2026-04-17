@@ -8,6 +8,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.3",
     "@vitejs/plugin-react": "latest",
     "concurrently": "latest",
     "cors": "latest",

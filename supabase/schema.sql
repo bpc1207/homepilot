@@ -4,6 +4,19 @@
 
 create extension if not exists "pgcrypto";
 
+-- Immediate production persistence adapter used by the current Express API.
+-- The app stores one JSON document here so the Vercel serverless deployment has durable state.
+-- The normalized tables below are the next migration target as the product matures.
+create table if not exists public.app_state (
+  key text primary key,
+  value jsonb not null default '{}',
+  updated_at timestamptz default now()
+);
+
+insert into public.app_state (key, value)
+values ('default', '{}')
+on conflict (key) do nothing;
+
 create table if not exists public.seller_profiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,

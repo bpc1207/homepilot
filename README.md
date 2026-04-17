@@ -91,8 +91,8 @@ The deployed app exposes `/readiness` and `/api/readiness` to show whether the e
 Production planning files:
 
 - `PRODUCTION.md` contains the launch checklist.
-- `supabase/schema.sql` contains a Supabase Postgres schema scaffold for replacing local JSON storage.
+- `supabase/schema.sql` contains an `app_state` table used by the current API for durable Supabase-backed JSON persistence, plus normalized table scaffolding for the next migration.
 
 ## Important Limitations
 
-This is a local pilot build, not a production real estate compliance system. Before charging real customers, replace the local JSON database with a managed database, add production auth, configure secure object storage, complete attorney review, and replace the development admin token.
+This is a pilot build, not a production real estate compliance system. Supabase-backed app state is supported when env vars are configured, but before charging real customers you should add production auth, complete attorney review, harden admin access, and migrate long-term records from JSON app state into normalized tables.

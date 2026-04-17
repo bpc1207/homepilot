@@ -13,14 +13,15 @@ Use this checklist before inviting real sellers or accepting real transaction do
 ## Supabase
 
 - Create a Supabase project.
-- Run `supabase/schema.sql` in the SQL editor.
+- Run `supabase/schema.sql` in the SQL editor. The current API immediately uses the `app_state` table for durable JSON persistence; the normalized tables are included for the next migration.
 - Create a private storage bucket named `homepilot-documents`.
 - Set these Vercel env vars:
   - `SUPABASE_URL`
   - `SUPABASE_ANON_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY`
   - `SUPABASE_STORAGE_BUCKET=homepilot-documents`
-- Replace the current local JSON adapter with Supabase-backed reads/writes before storing real customer data.
+- Confirm `/readiness` reports `supabase-app-state` after env vars are set and Vercel is redeployed.
+- Next migration: move from `app_state` JSON persistence into the normalized tables in `supabase/schema.sql`.
 
 ## Stripe
 
