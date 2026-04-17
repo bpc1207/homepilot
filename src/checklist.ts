@@ -1,3 +1,5 @@
+import { getStatePlaybook, getStateSources } from "./statePlaybooks";
+
 export type SellerProfile = {
   address: string;
   email: string;
@@ -40,26 +42,11 @@ export const defaultProfile: SellerProfile = {
   completedTaskIds: [],
 };
 
-const floridaSources = {
-  materialFacts: "https://www.floridarealtors.org/law-ethics/library/florida-real-estate-disclosure-laws",
-  flood: "https://www.flsenate.gov/Laws/Statutes/2025/Chapter689/All",
+const federalSources = {
   lead: "https://www.epa.gov/lead/real-estate-disclosures-about-potential-lead-hazards",
 };
 
-export const checklistSources = [
-  {
-    label: "Florida Realtors disclosure overview",
-    url: floridaSources.materialFacts,
-  },
-  {
-    label: "Florida Statutes Chapter 689, including flood disclosure",
-    url: floridaSources.flood,
-  },
-  {
-    label: "EPA lead-based paint disclosure overview",
-    url: floridaSources.lead,
-  },
-];
+export const checklistSources = getStateSources();
 
 export function isPre1978(profile: SellerProfile) {
   const year = Number(profile.builtYear);
@@ -68,6 +55,7 @@ export function isPre1978(profile: SellerProfile) {
 
 export function getChecklist(profile: SellerProfile): ChecklistItem[] {
   const normalizedState = profile.state.trim().toLowerCase();
+  const playbook = getStatePlaybook(profile.state);
   const base: ChecklistItem[] = [
     {
       id: "property-profile",
@@ -119,27 +107,8 @@ export function getChecklist(profile: SellerProfile): ChecklistItem[] {
     },
   ];
 
-  if (normalizedState === "florida") {
-    base.splice(3, 0,
-      {
-        id: "fl-known-material-facts",
-        category: "Disclose",
-        title: "Florida known material facts disclosure check",
-        detail: "Florida sellers should organize known facts that materially affect residential property value and are not readily observable or known to the buyer. Use this as a reminder and escalate disclosure questions to a Florida real estate attorney.",
-        timing: "Before contract execution",
-        riskLevel: "Expert",
-        source: floridaSources.materialFacts,
-      },
-      {
-        id: "fl-flood-disclosure",
-        category: "Disclose",
-        title: "Florida flood disclosure packet",
-        detail: "Florida Statute 689.302 requires a residential seller to complete and provide a flood disclosure to a buyer at or before the sales contract is executed.",
-        timing: "At or before contract execution",
-        riskLevel: "Important",
-        source: floridaSources.flood,
-      },
-    );
+  if (playbook) {
+    base.splice(3, 0, ...playbook.checklistItems);
   }
 
   if (isPre1978(profile)) {
@@ -150,7 +119,7 @@ export function getChecklist(profile: SellerProfile): ChecklistItem[] {
       detail: "Homes built before 1978 typically require lead-based paint disclosures and the EPA-approved pamphlet before a buyer is obligated under a contract.",
       timing: "Before contract execution",
       riskLevel: "Important",
-      source: floridaSources.lead,
+      source: federalSources.lead,
     });
   }
 
@@ -195,7 +164,7 @@ export function getChecklist(profile: SellerProfile): ChecklistItem[] {
       detail: "Known flood damage, insurance claims, federal assistance, unrepaired damage, or flood-zone uncertainty should trigger attorney/title guidance before accepting an offer.",
       timing: "Before accepting an offer",
       riskLevel: "Expert",
-      source: normalizedState === "florida" ? floridaSources.flood : undefined,
+      source: normalizedState === "florida" ? getStatePlaybook("Florida")?.sources.find((source) => source.label.includes("Statutes"))?.url : undefined,
     });
   }
 

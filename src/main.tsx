@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Link, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
@@ -23,16 +23,10 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import {
-  checklistSources,
-  defaultProfile,
-  getChecklist,
-  getCompletionPercent,
-  isPre1978,
-  type SellerProfile,
-} from "./checklist";
+import { defaultProfile, getChecklist, getCompletionPercent, isPre1978, type SellerProfile } from "./checklist";
 import { adminJson, apiJson, apiUpload, clearToken, getToken, setToken as storeToken } from "./api";
 import { getLegalPage, legalPages } from "./legalContent";
+import { getStatePlaybook, getStateSources, launchStates, priorityStatePlaybooks } from "./statePlaybooks";
 import {
   calculateOfferNet,
   defaultOffer,
@@ -138,7 +132,6 @@ const offers: Offer[] = [
   },
 ];
 
-const launchStates = ["Florida", "Texas", "Arizona", "North Carolina", "Georgia", "Colorado"];
 const profileStorageKey = "homepilot.profile";
 const queuedLeadsKey = "homepilot.queuedLeads";
 
@@ -184,7 +177,7 @@ function Header() {
         <Link to="/how-it-works">Workflow</Link>
         <Link to="/savings-calculator">Calculator</Link>
         <Link to="/pricing">Pricing</Link>
-        <Link to="/states/florida">Florida</Link>
+        <Link to="/states">States</Link>
         <Link to="/app">Dashboard</Link>
       </div>
       <Link className="nav-cta" to="/app">Start sale plan</Link>
@@ -567,7 +560,7 @@ function MvpSection() {
           The MVP launches in a small set of high-opportunity states with manual pricing review, manual partner matching, and a software dashboard that captures every repeatable workflow.
         </p>
         <div className="state-pills">
-          {launchStates.map((state) => <span key={state}>{state}</span>)}
+          {priorityStatePlaybooks.map((state) => <Link key={state.slug} to={`/states/${state.slug}`}>{state.name}</Link>)}
         </div>
       </div>
       <div className="mvp-card">
@@ -644,13 +637,58 @@ function SavingsPage() {
   );
 }
 
-function FloridaStatePage({ profile }: { profile: SellerProfile }) {
-  const floridaProfile = { ...profile, state: "Florida" };
-  const checklist = getChecklist(floridaProfile);
+function StateDirectoryPage() {
+  return (
+    <>
+      <PageHero
+        eyebrow="State expansion"
+        title="Launch where the workflow is repeatable, valuable, and legally containable."
+        body="HomePilot now has a reusable state playbook layer for the highest-efficiency expansion markets after Florida: Texas, Arizona, Nevada, Tennessee, and Colorado."
+      />
+      <section className="section state-directory">
+        {priorityStatePlaybooks.map((state) => (
+          <Link className="state-card" to={`/states/${state.slug}`} key={state.slug}>
+            <div className="state-card-top">
+              <span className="state-rank">#{state.launchRank}</span>
+              <span className="risk-pill standard">{state.status}</span>
+            </div>
+            <h3>{state.name}</h3>
+            <p>{state.marketAngle}</p>
+            <small>Complexity: {state.complexity} · {state.abbreviation}</small>
+          </Link>
+        ))}
+      </section>
+    </>
+  );
+}
+
+function StatePlaybookPage({ profile }: { profile: SellerProfile }) {
+  const { slug = "florida" } = useParams();
+  const playbook = getStatePlaybook(slug) || getStatePlaybook("florida")!;
+  const stateProfile = { ...profile, state: playbook.name };
+  const checklist = getChecklist(stateProfile);
+  const stateSources = getStateSources(playbook.name);
 
   return (
     <>
-      <PageHero eyebrow="Florida launch state" title="A Florida FSBO checklist that flags high-risk disclosure moments." body="This first state engine focuses on known material facts, flood disclosure, lead paint triggers, HOA or condo documents, and expert escalation. It is legal information, not legal advice." />
+      <PageHero eyebrow={`${playbook.name} playbook`} title={playbook.heroTitle} body={playbook.heroBody} />
+      <section className="section state-playbook-overview">
+        <article className="source-card">
+          <span className="risk-pill important">Why this state</span>
+          <h3>{playbook.whyEfficient}</h3>
+          <p>{playbook.marketAngle}</p>
+        </article>
+        <article className="source-card">
+          <span className="risk-pill standard">Closing model</span>
+          <h3>Partner handoff</h3>
+          <p>{playbook.closingModel}</p>
+        </article>
+        <article className="source-card">
+          <span className="risk-pill expert">Pricing caveat</span>
+          <h3>Confidence guardrail</h3>
+          <p>{playbook.pricingCaveat}</p>
+        </article>
+      </section>
       <section className="section checklist-section">
         <div className="checklist-panel">
           {checklist.map((item) => (
@@ -663,9 +701,17 @@ function FloridaStatePage({ profile }: { profile: SellerProfile }) {
           ))}
         </div>
         <div className="source-card">
+          <h3>{playbook.name} operating notes</h3>
+          <p>These focus areas and partner needs help a human operator or attorney partner validate the state playbook before launch.</p>
+          <div className="mini-list">
+            {playbook.focusAreas.map((item) => <span key={item}>{item}</span>)}
+          </div>
+          <h3>Partner needs</h3>
+          <div className="mini-list">
+            {playbook.partnerNeeds.map((item) => <span key={item}>{item}</span>)}
+          </div>
           <h3>Reference sources</h3>
-          <p>These links are included so a human operator or attorney partner can validate the state playbook before launch.</p>
-          {checklistSources.map((source) => (
+          {stateSources.map((source) => (
             <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.label}</a>
           ))}
         </div>
@@ -757,6 +803,8 @@ function AuthPanel({ onAuth }: { onAuth: (token: string, profile: SellerProfile,
 }
 
 function ProfileEditor({ profile, onProfileChange, onSave, saving }: { profile: SellerProfile; onProfileChange: (profile: SellerProfile) => void; onSave: () => void; saving: boolean }) {
+  const statePlaybook = getStatePlaybook(profile.state);
+
   function update<K extends keyof SellerProfile>(key: K, value: SellerProfile[K]) {
     onProfileChange({ ...profile, [key]: value });
   }
@@ -785,6 +833,14 @@ function ProfileEditor({ profile, onProfileChange, onSave, saving }: { profile: 
           <label><input type="checkbox" checked={profile.knownFloodHistory} onChange={(event) => update("knownFloodHistory", event.target.checked)} /> Known flood history</label>
         </div>
         {isPre1978(profile) && <p className="form-message queued">Built before 1978 detected: lead-based paint disclosure task added.</p>}
+        {statePlaybook && (
+          <div className="state-context-card">
+            <span className="risk-pill standard">{statePlaybook.status}</span>
+            <h3>{statePlaybook.name} state playbook</h3>
+            <p>{statePlaybook.closingModel}</p>
+            <Link className="text-button" to={`/states/${statePlaybook.slug}`}>View state checklist</Link>
+          </div>
+        )}
         <button className="button primary inline-button" onClick={onSave}>{saving ? "Saving..." : "Save profile"}</button>
       </div>
     </div>
@@ -846,6 +902,7 @@ function ListingBuilder({ profile, listing, onSave }: { profile: SellerProfile; 
 
 function PricingPlanner({ profile }: { profile: SellerProfile }) {
   const plan = getPricingPlan(profile);
+  const playbook = getStatePlaybook(profile.state);
   return (
     <section className="tool-panel">
       <div className="tool-heading"><p className="eyebrow"><BarChart3 size={16} /> Pricing planner</p><h2>Pick a launch strategy, not a magic number.</h2><p>These are educational strategy ranges. A human comp review should validate before launch.</p></div>
@@ -855,6 +912,7 @@ function PricingPlanner({ profile }: { profile: SellerProfile }) {
         ))}
       </div>
       <div className="calc-note"><CircleDollarSign size={15} /> Estimated listing-side commission avoided at 2.75%: <strong>{currency(plan.commissionAvoided)}</strong></div>
+      {playbook && <div className="calc-note"><MapPinned size={15} /> {playbook.name} pricing guardrail: <strong>{playbook.pricingCaveat}</strong></div>}
     </section>
   );
 }
@@ -1246,6 +1304,7 @@ function Footer() {
         <p>Guided home-selling software. Educational support, not legal advice. Expert partners where required.</p>
       </div>
       <div className="footer-links">
+        <Link to="/states">State playbooks</Link>
         <Link to="/readiness">Readiness</Link>
         {legalPages.map((page) => <Link key={page.slug} to={`/${page.slug}`}>{page.eyebrow}</Link>)}
       </div>
@@ -1264,7 +1323,8 @@ function AppShell() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/pricing" element={<PricingPage profile={profile} setProfile={setProfile} />} />
         <Route path="/savings-calculator" element={<SavingsPage />} />
-        <Route path="/states/florida" element={<FloridaStatePage profile={profile} />} />
+        <Route path="/states" element={<StateDirectoryPage />} />
+        <Route path="/states/:slug" element={<StatePlaybookPage profile={profile} />} />
         <Route path="/readiness" element={<ReadinessPage />} />
         {legalPages.map((page) => <Route key={page.slug} path={`/${page.slug}`} element={<LegalPageView slug={page.slug} />} />)}
         <Route path="/app" element={<DashboardPage profile={profile} setProfile={setProfile} />} />

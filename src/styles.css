@@ -782,12 +782,19 @@ select,
   margin-top: 22px;
 }
 
-.state-pills span {
+.state-pills span,
+.state-pills a {
   padding: 10px 13px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.5);
   font-weight: 800;
+}
+
+.state-pills a:hover {
+  color: white;
+  border-color: rgba(31, 111, 235, 0.2);
+  background: linear-gradient(135deg, var(--night), var(--sage-dark));
 }
 
 .mvp-card {
@@ -1482,6 +1489,8 @@ code {
   .workspace-summary,
   .tool-grid.two,
   .strategy-grid,
+  .state-directory,
+  .state-playbook-overview,
   .admin-grid,
   .admin-token-row {
     grid-template-columns: 1fr;
@@ -1542,6 +1551,98 @@ code {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.5);
+}
+
+.state-directory {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.state-card {
+  display: grid;
+  gap: 14px;
+  min-height: 260px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(232, 247, 241, 0.72)),
+    radial-gradient(circle at 100% 0%, rgba(31, 111, 235, 0.1), transparent 18rem);
+  box-shadow: 0 18px 50px rgba(11, 47, 87, 0.08);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.state-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(15, 139, 127, 0.35);
+  box-shadow: 0 26px 70px rgba(11, 47, 87, 0.13);
+}
+
+.state-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.state-rank {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  color: white;
+  background: linear-gradient(135deg, var(--night), var(--sage-dark));
+  font-weight: 900;
+}
+
+.state-card h3 {
+  margin-bottom: 0;
+}
+
+.state-card p,
+.state-card small,
+.state-context-card p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.state-playbook-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding-top: 0;
+}
+
+.mini-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 20px;
+}
+
+.mini-list span {
+  padding: 8px 10px;
+  border: 1px solid rgba(15, 139, 127, 0.16);
+  border-radius: 999px;
+  color: var(--night);
+  background: rgba(232, 247, 241, 0.78);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.state-context-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid rgba(15, 139, 127, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(232, 247, 241, 0.62);
+}
+
+.state-context-card h3 {
+  margin-bottom: 0;
 }
 
 .site-footer {

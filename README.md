@@ -55,12 +55,12 @@ $env:LEADS_TO="founder@example.com"
 
 ## Frontend Product Surface
 
-- Multi-page marketing routes for the homepage, workflow, pricing, savings calculator, Florida state page, and seller dashboard.
+- Multi-page marketing routes for the homepage, workflow, pricing, savings calculator, state playbook directory, and seller dashboard.
 - Account-gated seller workspace.
 - Interactive listing-side commission savings calculator.
 - Saved seller onboarding state with server sync after login.
 - Dynamic seller checklist with completion progress and task toggles.
-- First launch-state checklist engine for Florida, including material-fact, flood-disclosure, lead-paint, HOA/condo, pool, well/septic, MLS partner, offer, and closing tasks.
+- Reusable state playbook engine for Florida, Texas, Arizona, Nevada, Tennessee, and Colorado, including disclosure, pricing-confidence, partner-handoff, HOA/condo, pool, well/septic, MLS partner, offer, and closing tasks.
 - Listing builder with generated listing description, social caption, flyer copy, and showing instructions.
 - Pricing planner with fast, balanced, and aspirational strategy ranges.
 - Offer desk with structured intake, net proceeds math, and risk scoring.
