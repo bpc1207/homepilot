@@ -32,6 +32,7 @@ import {
   type SellerProfile,
 } from "./checklist";
 import { adminJson, apiJson, apiUpload, clearToken, getToken, setToken as storeToken } from "./api";
+import { getLegalPage, legalPages } from "./legalContent";
 import {
   calculateOfferNet,
   defaultOffer,
@@ -1182,14 +1183,72 @@ function DashboardPage({ profile, setProfile }: { profile: SellerProfile; setPro
   );
 }
 
+
+function LegalPageView({ slug }: { slug: string }) {
+  const page = getLegalPage(slug) || legalPages[0];
+
+  return (
+    <>
+      <PageHero eyebrow={page.eyebrow} title={page.title} body={page.intro} />
+      <section className="section legal-doc-section">
+        <div className="legal-doc-card">
+          <p className="form-message queued">Draft content for beta planning. Have counsel review before paid public launch.</p>
+          {page.sections.map((section) => (
+            <article key={section.heading}>
+              <h3>{section.heading}</h3>
+              {section.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function ReadinessPage() {
+  const [report, setReport] = useState<{ readyForRealCustomers: boolean; environment: string; dataMode: string; checks: Array<{ key: string; label: string; status: boolean; detail: string }> } | null>(null);
+  const [message, setMessage] = useState("Loading readiness checks...");
+
+  useEffect(() => {
+    apiJson<{ readyForRealCustomers: boolean; environment: string; dataMode: string; checks: Array<{ key: string; label: string; status: boolean; detail: string }> }>("/api/readiness")
+      .then((result) => { setReport(result); setMessage(""); })
+      .catch((error) => setMessage(error instanceof Error ? error.message : "Could not load readiness report."));
+  }, []);
+
+  return (
+    <>
+      <PageHero eyebrow="Production readiness" title="Know what is safe before real sellers use it." body="This page checks the deployment environment for the biggest launch blockers: durable storage, Stripe, admin security, email, and legal review." />
+      <section className="section readiness-section">
+        {message && <p className="form-message queued">{message}</p>}
+        {report && <div className="readiness-summary"><span className={`risk-pill ${report.readyForRealCustomers ? "standard" : "expert"}`}>{report.readyForRealCustomers ? "Ready" : "Not production-ready"}</span><h3>{report.environment} / {report.dataMode}</h3></div>}
+        <div className="checklist-panel">
+          {report?.checks.map((check) => (
+            <article className={`checklist-item ${check.status ? "done" : ""}`} key={check.key}>
+              <span className={`risk-pill ${check.status ? "standard" : "important"}`}>{check.status ? "Pass" : "Action needed"}</span>
+              <h3>{check.label}</h3>
+              <p>{check.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
 function Footer() {
   return (
-    <footer>
-      <Link className="brand" to="/" aria-label="HomePilot home">
-        <span className="brand-mark"><Home size={18} /></span>
-        <span>HomePilot</span>
-      </Link>
-      <p>Guided home-selling software. Educational support, not legal advice. Expert partners where required.</p>
+    <footer className="site-footer">
+      <div>
+        <Link className="brand" to="/" aria-label="HomePilot home">
+          <span className="brand-mark"><Home size={18} /></span>
+          <span>HomePilot</span>
+        </Link>
+        <p>Guided home-selling software. Educational support, not legal advice. Expert partners where required.</p>
+      </div>
+      <div className="footer-links">
+        <Link to="/readiness">Readiness</Link>
+        {legalPages.map((page) => <Link key={page.slug} to={`/${page.slug}`}>{page.eyebrow}</Link>)}
+      </div>
     </footer>
   );
 }
@@ -1206,6 +1265,8 @@ function AppShell() {
         <Route path="/pricing" element={<PricingPage profile={profile} setProfile={setProfile} />} />
         <Route path="/savings-calculator" element={<SavingsPage />} />
         <Route path="/states/florida" element={<FloridaStatePage profile={profile} />} />
+        <Route path="/readiness" element={<ReadinessPage />} />
+        {legalPages.map((page) => <Route key={page.slug} path={`/${page.slug}`} element={<LegalPageView slug={page.slug} />} />)}
         <Route path="/app" element={<DashboardPage profile={profile} setProfile={setProfile} />} />
         <Route path="*" element={<HomePage profile={profile} setProfile={setProfile} />} />
       </Routes>

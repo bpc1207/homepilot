@@ -18,6 +18,8 @@ const adminToken = process.env.ADMIN_TOKEN || "dev-admin-token";
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 const appUrl = process.env.APP_URL || `http://localhost:${port}`;
+const isVercel = Boolean(process.env.VERCEL);
+const dataMode = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? "supabase-ready" : "local-json";
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" }) : null;
 
 const paymentPlans = {
@@ -93,6 +95,62 @@ const defaultDb = {
   tasks: [],
   leads: [],
 };
+
+
+function getReadinessReport() {
+  const checks = [
+    {
+      key: "publicUrl",
+      label: "Public app URL",
+      status: Boolean(process.env.APP_URL),
+      detail: process.env.APP_URL ? "APP_URL is configured." : "Set APP_URL to the production Vercel URL or custom domain.",
+    },
+    {
+      key: "database",
+      label: "Durable database",
+      status: dataMode === "supabase-ready",
+      detail: dataMode === "supabase-ready" ? "Supabase env vars are present." : "Local JSON storage is active. Use Supabase before real customer data.",
+    },
+    {
+      key: "storage",
+      label: "Durable document storage",
+      status: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_STORAGE_BUCKET),
+      detail: process.env.SUPABASE_STORAGE_BUCKET ? "Storage bucket is configured." : "Set SUPABASE_STORAGE_BUCKET and replace local upload storage before real documents.",
+    },
+    {
+      key: "adminToken",
+      label: "Admin token",
+      status: Boolean(process.env.ADMIN_TOKEN) && process.env.ADMIN_TOKEN !== "dev-admin-token",
+      detail: process.env.ADMIN_TOKEN && process.env.ADMIN_TOKEN !== "dev-admin-token" ? "ADMIN_TOKEN is customized." : "Replace the development admin token.",
+    },
+    {
+      key: "stripe",
+      label: "Stripe checkout",
+      status: Boolean(stripeSecretKey && stripeWebhookSecret),
+      detail: stripeSecretKey && stripeWebhookSecret ? "Stripe secret and webhook secret are configured." : "Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET for real checkout.",
+    },
+    {
+      key: "email",
+      label: "Lead notification email",
+      status: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.LEADS_TO),
+      detail: process.env.SMTP_HOST ? "SMTP variables are partially or fully configured." : "Set SMTP variables to receive lead notifications.",
+    },
+    {
+      key: "legalReview",
+      label: "Attorney-reviewed legal content",
+      status: process.env.LEGAL_REVIEW_COMPLETE === "true",
+      detail: process.env.LEGAL_REVIEW_COMPLETE === "true" ? "LEGAL_REVIEW_COMPLETE is marked true." : "Complete attorney review before charging real sellers.",
+    },
+  ];
+
+  return {
+    ok: true,
+    environment: isVercel ? "vercel" : "local",
+    dataMode,
+    readyForRealCustomers: checks.every((check) => check.status),
+    checks,
+  };
+}
 
 function ensureDataFiles() {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -226,7 +284,11 @@ function userScoped(db, collection, userId) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, apiOnly, dbFile, leadsFile, uploadsDir });
+  res.json({ ok: true, apiOnly, dbFile, leadsFile, uploadsDir, dataMode, isVercel });
+});
+
+app.get("/api/readiness", (_req, res) => {
+  res.json(getReadinessReport());
 });
 
 app.post("/api/auth/register", (req, res) => {

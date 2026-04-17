@@ -84,6 +84,15 @@ $env:STRIPE_PRICE_GUIDED="price_..."
 
 If you omit the `STRIPE_PRICE_*` variables but provide `STRIPE_SECRET_KEY`, the backend creates Checkout line items with inline `price_data` using the local package amounts. Stripe webhooks should post to `/api/stripe/webhook`.
 
+## Production Readiness
+
+The deployed app exposes `/readiness` and `/api/readiness` to show whether the environment is ready for real sellers. The report checks durable database/storage readiness, Stripe, SMTP, admin token hardening, public URL configuration, and legal-review status.
+
+Production planning files:
+
+- `PRODUCTION.md` contains the launch checklist.
+- `supabase/schema.sql` contains a Supabase Postgres schema scaffold for replacing local JSON storage.
+
 ## Important Limitations
 
 This is a local pilot build, not a production real estate compliance system. Before charging real customers, replace the local JSON database with a managed database, add production auth, configure secure object storage, complete attorney review, and replace the development admin token.
