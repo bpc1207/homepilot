@@ -1,7 +1,9 @@
 import type { Case, DocumentKind } from "@prisma/client";
 import { prisma } from "./db";
 import { audit, type Actor } from "./audit";
-import { decryptBytes, encryptBytes, newDataKey, sha256Hex, unwrapDataKey } from "./crypto";
+import { decryptBytes, decryptText, encryptBytes, encryptText, newDataKey, sha256Hex, unwrapDataKey } from "./crypto";
+import { ExtractionSchema, StoredAnalysisSchema, DENIAL_TYPES, type ExtractionFields, type StoredAnalysis } from "./schemas";
+import type { DenialType, ProcessingState } from "@prisma/client";
 import { storage } from "./storage";
 import { env } from "./env";
 
@@ -115,3 +117,85 @@ export async function recentAudit(actor: Actor, take = 50) {
   return prisma.auditLog.findMany({ where: { actorId: actor.userId! }, orderBy: { at: "desc" }, take });
 }
 
+
+export const WORKER: Actor = { userId: null, role: "WORKER" };
+
+/** Worker-side document read (intake pipeline). Audited as the WORKER role. */
+export async function readDocumentForWorker(caseId: string, docId: string) {
+  const doc = await prisma.document.findUnique({ where: { id: docId }, include: { case: true } });
+  if (!doc || doc.caseId !== caseId) throw new NotFoundError();
+  const dek = await unwrapDataKey(doc.case.dataKeyWrapped);
+  const bytes = decryptBytes(dek, await storage().get(doc.storageKey), doc.caseId);
+  await audit(prisma, WORKER, "DOCUMENT_READ", "Document", doc.id);
+  return { bytes, mime: doc.mime };
+}
+
+export async function setProcessing(actor: Actor, caseId: string, state: ProcessingState, unsupportedReason: string | null = null) {
+  const c = await prisma.case.findUnique({ where: { id: caseId } });
+  if (!c || (actor.userId !== null && !canSee(actor, c))) throw new NotFoundError();
+  await prisma.$transaction(async (tx) => {
+    await tx.case.update({ where: { id: caseId }, data: { processingState: state, unsupportedReason } });
+    await audit(tx, actor, "CASE_UPDATE", "Case", caseId);
+  });
+}
+
+/** Persist the pipeline output, encrypted. Also sets the case's denial type and deadline (user can still change both). */
+export async function saveAnalysis(actor: Actor, caseId: string, docId: string | null, a: StoredAnalysis & { text?: string; unsupportedReason?: string | null }) {
+  const c = await prisma.case.findUnique({ where: { id: caseId } });
+  if (!c || (actor.userId !== null && !canSee(actor, c))) throw new NotFoundError();
+  const dek = await unwrapDataKey(c.dataKeyWrapped);
+  const stored: StoredAnalysis = { fields: a.fields, classification: a.classification, ocr: a.ocr };
+  const fieldsEnc = encryptText(dek, JSON.stringify(stored), caseId);
+  const deadline = a.fields.appealDeadline ? new Date(`${a.fields.appealDeadline}T00:00:00Z`) : null;
+  await prisma.$transaction(async (tx) => {
+    await tx.extraction.upsert({
+      where: { caseId },
+      create: { caseId, fieldsEnc, confidence: { ocr: a.ocr.confidence, classification: a.classification.confidence } },
+      update: { fieldsEnc, confirmedAt: null, confidence: { ocr: a.ocr.confidence, classification: a.classification.confidence } },
+    });
+    if (docId && a.text) await tx.document.update({ where: { id: docId }, data: { ocrTextEnc: encryptText(dek, a.text, caseId) } });
+    await tx.case.update({
+      where: { id: caseId },
+      data: {
+        denialType: a.classification.primary as DenialType,
+        appealDeadline: deadline,
+        processingState: a.unsupportedReason ? "UNSUPPORTED" : "READY",
+        unsupportedReason: a.unsupportedReason ?? null,
+      },
+    });
+    await audit(tx, actor, "CASE_UPDATE", "Extraction", caseId);
+  });
+}
+
+export async function getAnalysis(actor: Actor, caseId: string): Promise<{ analysis: StoredAnalysis; confirmedAt: Date | null } | null> {
+  const c = await prisma.case.findUnique({ where: { id: caseId }, include: { extraction: true } });
+  if (!c || !canSee(actor, c)) throw new NotFoundError();
+  if (!c.extraction) return null;
+  const dek = await unwrapDataKey(c.dataKeyWrapped);
+  await audit(prisma, actor, "CASE_READ", "Extraction", caseId);
+  const analysis = StoredAnalysisSchema.parse(JSON.parse(decryptText(dek, c.extraction.fieldsEnc, caseId)));
+  return { analysis, confirmedAt: c.extraction.confirmedAt };
+}
+
+/** User-confirmed facts. These replace the model's values; the model's classification evidence is kept. */
+export async function confirmExtraction(actor: Actor, caseId: string, fields: ExtractionFields, denialType: (typeof DENIAL_TYPES)[number]) {
+  const parsed = ExtractionSchema.parse(fields);
+  const c = await prisma.case.findUnique({ where: { id: caseId }, include: { extraction: true } });
+  if (!c || !canSee(actor, c)) throw new NotFoundError();
+  const dek = await unwrapDataKey(c.dataKeyWrapped);
+  const prev = c.extraction ? StoredAnalysisSchema.parse(JSON.parse(decryptText(dek, c.extraction.fieldsEnc, caseId))) : null;
+  const stored: StoredAnalysis = {
+    fields: parsed,
+    classification: { primary: denialType, secondary: prev?.classification.secondary ?? [], confidence: prev?.classification.primary === denialType ? prev.classification.confidence : 1, evidence: prev?.classification.primary === denialType ? prev.classification.evidence : null },
+    ocr: prev?.ocr ?? { method: "manual", confidence: 1 },
+  };
+  const fieldsEnc = encryptText(dek, JSON.stringify(stored), caseId);
+  await prisma.$transaction(async (tx) => {
+    await tx.extraction.upsert({ where: { caseId }, create: { caseId, fieldsEnc, confirmedAt: new Date() }, update: { fieldsEnc, confirmedAt: new Date() } });
+    await tx.case.update({
+      where: { id: caseId },
+      data: { denialType: denialType as DenialType, appealDeadline: parsed.appealDeadline ? new Date(`${parsed.appealDeadline}T00:00:00Z`) : null },
+    });
+    await audit(tx, actor, "CASE_UPDATE", "Extraction", caseId);
+  });
+}

@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Northwind Health Plan",
+    "planType": "EMPLOYER_GROUP",
+    "claimRef": "NW-2026-0003417",
+    "service": "MRI lumbar spine without contrast",
+    "cptCodes": [
+      "72148"
+    ],
+    "icdCodes": [
+      "M54.16"
+    ],
+    "denialDate": "2026-03-03",
+    "appealDeadline": "2026-08-30",
+    "amountDeniedCents": 184000
+  },
+  "denialType": "MEDICAL_NECESSITY",
+  "secondary": [],
+  "unsupported": false
+}

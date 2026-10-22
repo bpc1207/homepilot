@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Pinecrest Health Alliance",
+    "planType": "EMPLOYER_GROUP",
+    "claimRef": "PH-31-77120",
+    "service": "Transcranial magnetic stimulation",
+    "cptCodes": [
+      "90867"
+    ],
+    "icdCodes": [
+      "F33.2"
+    ],
+    "denialDate": "2026-01-12",
+    "appealDeadline": "2026-07-11",
+    "amountDeniedCents": 960000
+  },
+  "denialType": "EXPERIMENTAL_INVESTIGATIONAL",
+  "secondary": [],
+  "unsupported": false
+}

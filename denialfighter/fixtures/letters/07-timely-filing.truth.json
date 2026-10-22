@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Bluestone Health Partners",
+    "planType": "ACA_MARKETPLACE",
+    "claimRef": "BS-8841-2209",
+    "service": "Office visit, established patient",
+    "cptCodes": [
+      "99213"
+    ],
+    "icdCodes": [
+      "J06.9"
+    ],
+    "denialDate": "2026-03-30",
+    "appealDeadline": "2026-09-26",
+    "amountDeniedCents": 17500
+  },
+  "denialType": "TIMELY_FILING",
+  "secondary": [],
+  "unsupported": false
+}

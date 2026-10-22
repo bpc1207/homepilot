@@ -4,7 +4,7 @@ Helps patients appeal denied health insurance claims: upload a denial letter, co
 letter, document checklist and deadline reminders. **The user files the appeal; the app never submits anything.**
 Not legal or medical advice.
 
-Status: **Phase 1 of 6 (foundation)**. See the approved architecture and data model in the session plan; summary below.
+Status: **Phase 2 of 6 (intake pipeline + Denial Checker)**. See the approved architecture and data model in the session plan; summary below.
 
 ## Run locally (one command)
 
@@ -25,6 +25,20 @@ npm run typecheck && npm run lint
 npm test                       # needs Postgres; uses DB denialfighter_test (TEST_DATABASE_URL to override)
 CHROMIUM_PATH=... ./scripts/e2e.sh   # Playwright smoke: sign in, case, upload, audit, delete
 ```
+
+## What exists in Phase 2
+
+| Area | Implementation |
+|---|---|
+| Synthetic corpus | `fixtures/letters/`: 10 fabricated denial letters (one per denial type plus multi-reason, no-deadline, Medicare Advantage), PDFs with a text layer, 3 phone-photo-style PNGs, ground-truth JSON. Regenerate with `npm run fixtures` |
+| Reading letters | PDF text layer first; images go to Textract (`OCR_DRIVER=textract`); poor OCR or scans fall back to LLM vision |
+| Extraction + classification | LLM (`LLM_DRIVER=bedrock`, model from `LLM_MODEL`) returns JSON validated by Zod. Letter text is treated as untrusted data. Codes and quotes not literally in the letter are dropped. Missing facts stay `null` (no invented deadlines) |
+| Mock driver | `LLM_DRIVER=mock` uses a deterministic rule-based baseline (`src/lib/rules.ts`) so dev/CI work offline. It is not a model |
+| Jobs | `intake` and `checker` queues on pg-boss; `JOBS_DRIVER=inline` runs them in-process for local/e2e |
+| Case UI | Processing state, confirm/edit form (your edits win), unsupported-plan notice, manual entry if reading fails |
+| Denial Checker | Anonymous upload on the landing page, 24 h encrypted lead, per-IP limit (5/hour), headline + signal before email, details after email + consent, sign-in link converts it to a case (email must match) |
+| Funnel events | `checker_uploaded`, `email_captured`, `account_created`, `case_created` in `AnalyticsEvent` (no PHI) |
+| Accuracy | `npm run eval` writes `ACCURACY_REPORT.md` (see its banner: mock numbers are a baseline, not model accuracy) |
 
 ## What exists in Phase 1
 
@@ -51,7 +65,12 @@ See plan sections 5 and 6: HIPAA status of a consumer tool, unauthorized-practic
 letter drafting, legality of a success fee (ships OFF), de-identification method and consent for the outcomes dataset,
 retention vs deletion, and attorney sign-off on any citation allowlist. Nothing in code asserts legal authority yet.
 
-## Known limits of Phase 1
+## Known limits (Phases 1 and 2)
+
+- **Bedrock and Textract adapters have never run**: no AWS credentials in the build environment. They are written to the SDK types but untested; run `LLM_DRIVER=bedrock LLM_MODEL=<id> OCR_DRIVER=textract npm run eval` with credentials and review the report before trusting them.
+- Photo-variant tests use simulated OCR text; real photo OCR quality is unmeasured.
+- The corpus was written by one author in a few layouts; real insurer letters are far more varied. Treat 100% on it as a smoke test.
+- No malware scan on uploads yet; the Checker's email gate is a marketing gate, not a security control (the result is protected by an unguessable id bound to a cookie).
 
 - Docker Compose files are written but **were not run** in the build environment (no Docker daemon). Everything else was verified against a local Postgres.
 - Malware scanning of uploads, rate limiting of anonymous endpoints, and the Terraform/AWS deployment arrive in later phases.

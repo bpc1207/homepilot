@@ -1,24 +1,19 @@
 import { env } from "../env";
 import type { LlmProvider, OcrProvider } from "./types";
+import { MockLlm, MockOcr } from "./mock";
+import { BedrockLlm } from "./bedrock";
+import { TextractOcr } from "./textract";
 
 export * from "./types";
-
-class MockOcr implements OcrProvider {
-  async extractText() {
-    return { text: "", confidence: 0, pages: 0 };
-  }
-}
-class MockLlm implements LlmProvider {
-  async complete() {
-    return { text: "{}", tokensIn: 0, tokensOut: 0, model: env().LLM_MODEL };
-  }
-}
+export { MockOcr };
 
 export function ocrProvider(): OcrProvider {
-  if (env().OCR_DRIVER !== "mock") throw new Error("OCR driver not implemented until Phase 2");
-  return new MockOcr();
+  return env().OCR_DRIVER === "textract" ? new TextractOcr() : new MockOcr();
 }
+
 export function llmProvider(): LlmProvider {
-  if (env().LLM_DRIVER !== "mock") throw new Error("LLM driver not implemented until Phase 2");
+  const d = env().LLM_DRIVER;
+  if (d === "bedrock") return new BedrockLlm();
+  if (d === "anthropic") throw new Error("LLM_DRIVER=anthropic is not implemented; use bedrock or mock");
   return new MockLlm();
 }

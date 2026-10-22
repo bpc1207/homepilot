@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Golden State Senior Advantage",
+    "planType": "MEDICARE_ADVANTAGE",
+    "claimRef": "GS-MA-4410-77",
+    "service": "Total knee replacement",
+    "cptCodes": [
+      "27447"
+    ],
+    "icdCodes": [
+      "M17.11"
+    ],
+    "denialDate": "2026-05-20",
+    "appealDeadline": "2026-07-24",
+    "amountDeniedCents": 3400000
+  },
+  "denialType": "MEDICAL_NECESSITY",
+  "secondary": [],
+  "unsupported": true
+}

@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Cedar Valley Insurance Company",
+    "planType": "ACA_MARKETPLACE",
+    "claimRef": "CV7788210",
+    "service": "Arthroscopic knee surgery (meniscectomy)",
+    "cptCodes": [
+      "29881"
+    ],
+    "icdCodes": [
+      "M23.221"
+    ],
+    "denialDate": "2026-04-14",
+    "appealDeadline": "2026-10-11",
+    "amountDeniedCents": 1245000
+  },
+  "denialType": "PRIOR_AUTH_MISSING",
+  "secondary": [],
+  "unsupported": false
+}
