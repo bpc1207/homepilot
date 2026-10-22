@@ -1,0 +1,68 @@
+# One command: `docker compose up --build`
+# Web: http://localhost:3000   Mail inbox (magic links): http://localhost:8025   MinIO console: http://localhost:9001
+# Dev only: mock OCR/LLM, local master key, no real PHI. Production runs on AWS (see DEPLOYMENT.md).
+x-app-env: &app-env
+  DATABASE_URL: postgresql://denial:denial@db:5432/denialfighter
+  APP_URL: http://localhost:3000
+  APP_MASTER_KEY: ZGV2LW9ubHkta2V5LWRvLW5vdC11c2UtaW4tcHJvZCE=   # dev only, 32 bytes
+  KEY_DRIVER: local
+  ALLOW_INSECURE_DEV: "true"   # production build, but localhost-only with local keys
+  STORAGE_DRIVER: s3
+  S3_BUCKET: denialfighter-dev
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY_ID: minioadmin
+  S3_SECRET_ACCESS_KEY: minioadmin
+  MAIL_DRIVER: smtp
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  OCR_DRIVER: mock
+  LLM_DRIVER: mock
+
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_USER: denial, POSTGRES_PASSWORD: denial, POSTGRES_DB: denialfighter }
+    ports: ["5432:5432"]
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U denial -d denialfighter"], interval: 3s, retries: 20 }
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+    healthcheck: { test: ["CMD", "mc", "ready", "local"], interval: 3s, retries: 20 }
+
+  minio-init:
+    image: minio/mc
+    depends_on: { minio: { condition: service_healthy } }
+    entrypoint: ["/bin/sh", "-c", "mc alias set local http://minio:9000 minioadmin minioadmin && mc mb -p local/denialfighter-dev"]
+
+  mailpit:
+    image: axllent/mailpit
+    ports: ["8025:8025", "1025:1025"]
+
+  migrate:
+    build: .
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
+    environment: *app-env
+    depends_on: { db: { condition: service_healthy } }
+
+  web:
+    build: .
+    ports: ["3000:3000"]
+    environment: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+
+  worker:
+    build: .
+    command: npm run worker
+    environment: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  dbdata:
+  miniodata:

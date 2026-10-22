@@ -1,0 +1,282 @@
+// DenialFighter data model. Fields suffixed `Enc` hold app-level AES-256-GCM
+// ciphertext (envelope encryption, per-case data key). Never log these tables' contents.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPPORT
+}
+
+enum CaseStatus {
+  DRAFT
+  SENT
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+  EXTERNAL_REVIEW
+}
+
+enum DenialType {
+  MEDICAL_NECESSITY
+  PRIOR_AUTH_MISSING
+  OUT_OF_NETWORK
+  CODING_ERROR
+  EXPERIMENTAL_INVESTIGATIONAL
+  COVERAGE_EXCLUSION
+  TIMELY_FILING
+  OTHER
+}
+
+enum DocumentKind {
+  DENIAL_LETTER
+  PLAN_DOC
+  EOB
+  MEDICAL_RECORD
+  OTHER
+}
+
+enum PaymentKind {
+  PACKET
+  SUCCESS_FEE
+}
+
+enum ConsentKind {
+  TERMS
+  PRIVACY
+  OUTCOME_DATA
+}
+
+model User {
+  id         String          @id @default(cuid())
+  email      String          @unique
+  role       Role            @default(USER)
+  createdAt  DateTime        @default(now())
+  deletedAt  DateTime?
+  sessions   Session[]
+  cases      Case[]
+  consents   ConsentRecord[]
+}
+
+model LoginToken {
+  id             String    @id @default(cuid())
+  email          String
+  tokenHash      String    @unique
+  consentVersion String?
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ConsentRecord {
+  id      String      @id @default(cuid())
+  userId  String
+  kind    ConsentKind
+  version String
+  at      DateTime    @default(now())
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Anonymous Denial Checker upload; purged at expiresAt unless converted to a Case.
+model Lead {
+  id              String   @id @default(cuid())
+  email           String?
+  storageKey      String?
+  wrappedKey      String?
+  checkerResultEnc String?
+  expiresAt       DateTime
+  convertedCaseId String?
+  createdAt       DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Case {
+  id             String      @id @default(cuid())
+  userId         String
+  status         CaseStatus  @default(DRAFT)
+  denialType     DenialType?
+  appealDeadline DateTime?
+  /// Per-case data key wrapped by KMS (or local master key in dev). Null after deletion (crypto-shred).
+  dataKeyWrapped String?
+  outcomeConsent Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents      Document[]
+  extraction     Extraction?
+  appeals        Appeal[]
+  reminders      Reminder[]
+  events         CaseEvent[]
+  payments       Payment[]
+  successFee     SuccessFeeAgreement?
+
+  @@index([userId])
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  caseId      String
+  kind        DocumentKind
+  storageKey  String
+  mime        String
+  sizeBytes   Int
+  sha256      String
+  ocrTextEnc  String?
+  createdAt   DateTime     @default(now())
+  case        Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+model Extraction {
+  id          String    @id @default(cuid())
+  caseId      String    @unique
+  fieldsEnc   String
+  confidence  Json?
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  case        Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Appeal {
+  id                  String          @id @default(cuid())
+  caseId              String
+  version             Int
+  strategyEnc         String
+  letterEnc           String
+  providerTemplateEnc String?
+  checklistJson       Json?
+  authoritiesUsed     String[]
+  model               String?
+  promptVersion       String?
+  createdAt           DateTime        @default(now())
+  case                Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  items               ChecklistItem[]
+
+  @@unique([caseId, version])
+}
+
+model ChecklistItem {
+  id        String  @id @default(cuid())
+  appealId  String
+  label     String
+  done      Boolean @default(false)
+  documentId String?
+  appeal    Appeal  @relation(fields: [appealId], references: [id], onDelete: Cascade)
+
+  @@index([appealId])
+}
+
+model Reminder {
+  id         String    @id @default(cuid())
+  caseId     String
+  daysBefore Int
+  sendAt     DateTime
+  sentAt     DateTime?
+  case       Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, daysBefore])
+  @@index([sendAt, sentAt])
+}
+
+model CaseEvent {
+  id         String      @id @default(cuid())
+  caseId     String
+  fromStatus CaseStatus?
+  toStatus   CaseStatus
+  at         DateTime    @default(now())
+  case       Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+model Payment {
+  id          String      @id @default(cuid())
+  caseId      String
+  kind        PaymentKind
+  stripeRef   String?
+  amountCents Int
+  status      String
+  createdAt   DateTime    @default(now())
+  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+}
+
+model SuccessFeeAgreement {
+  id                   String    @id @default(cuid())
+  caseId               String    @unique
+  feePercent           Decimal   @db.Decimal(5, 2)
+  termsVersion         String
+  acceptedAt           DateTime
+  recoveredAmountCents Int?
+  chargedAt            DateTime?
+  case                 Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+/// De-identified, deliberately NOT linked to Case or User. Written only with consent.
+model OutcomeRecord {
+  id            String     @id @default(cuid())
+  insurer       String
+  denialType    DenialType
+  cptCodes      String[]
+  icdCodes      String[]
+  argumentsUsed String[]
+  outcome       CaseStatus
+  decisionYear  Int
+  amountBucket  String?
+  createdAt     DateTime   @default(now())
+
+  @@index([insurer, denialType])
+}
+
+/// Append-only (enforced by DB trigger in migration). IDs only, never content.
+model AuditLog {
+  id           String   @id @default(cuid())
+  at           DateTime @default(now())
+  actorId      String?
+  actorRole    String?
+  action       String
+  resourceType String
+  resourceId   String?
+  ipHash       String?
+
+  @@index([actorId, at])
+  @@index([resourceType, resourceId])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  at         DateTime @default(now())
+  name       String
+  anonId     String?
+  userIdHash String?
+  props      Json?
+
+  @@index([name, at])
+}
