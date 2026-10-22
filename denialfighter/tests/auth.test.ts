@@ -24,8 +24,10 @@ describe("magic link auth", () => {
     const stored = await prisma.loginToken.findFirstOrThrow();
     expect(stored.tokenHash).not.toBe(lastLink);
 
-    const session = await consumeLoginToken(lastLink, "203.0.113.9");
-    expect(session).toBeTruthy();
+    const login = await consumeLoginToken(lastLink, "203.0.113.9");
+    expect(login?.sessionToken).toBeTruthy();
+    expect(login?.isNewUser).toBe(true);
+    expect(login?.redirectTo).toBe("/dashboard");
     const user = await prisma.user.findUniqueOrThrow({ where: { email: "new.user@example.test" } });
     expect(await prisma.consentRecord.count({ where: { userId: user.id } })).toBe(2);
     expect(await prisma.auditLog.count({ where: { actorId: user.id, action: "AUTH_LOGIN" } })).toBe(1);

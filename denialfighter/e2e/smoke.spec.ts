@@ -5,10 +5,12 @@ import { readFileSync } from "node:fs";
 const MAIL_LOG = process.env.MAIL_LOG ?? ".data/server.log";
 const PDF = Buffer.from("%PDF-1.4\nSYNTHETIC DENIAL LETTER\n%%EOF");
 
-function latestLink(): string {
-  const m = [...readFileSync(MAIL_LOG, "utf8").matchAll(/(http:\/\/[^\s]+\/api\/auth\/verify\?token=[\w-]+)/g)];
-  if (!m.length) throw new Error("no magic link in mail log");
-  return m[m.length - 1][1];
+function latestLink(email?: string): string {
+  const log = readFileSync(MAIL_LOG, "utf8");
+  const blocks = log.split("[mail:console]").filter((b) => !email || b.includes(`to=${email}`));
+  const links = blocks.flatMap((b) => [...b.matchAll(/(http:\/\/[^\s]+\/api\/auth\/verify\?token=[\w-]+)/g)].map((m) => m[1]));
+  if (!links.length) throw new Error("no magic link in mail log");
+  return links[links.length - 1];
 }
 
 test("sign in, create case, upload, view audit, delete", async ({ page }) => {
@@ -38,4 +40,31 @@ test("sign in, create case, upload, view audit, delete", async ({ page }) => {
   await page.getByRole("button", { name: "Delete this case and all its data" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByText("No cases yet.")).toBeVisible();
+});
+
+test("denial checker: upload, email gate, sign in, confirm extracted facts", async ({ page }) => {
+  const email = `checker-${Date.now()}@example.test`;
+  await page.goto("/");
+  await page.setInputFiles('input[name="file"]', "fixtures/letters/01-medical-necessity.pdf");
+  await page.getByRole("button", { name: "Check my letter" }).click();
+  await expect(page).toHaveURL(/\/check\//);
+  await expect(page.getByRole("heading", { name: "Denied as not medically necessary" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Appeal deadline on the letter")).toHaveCount(0); // gated until email
+
+  await page.fill('input[name="email"]', email);
+  await page.check('input[name="consent"]');
+  await page.getByRole("button", { name: "Show full result" }).click();
+  await expect(page.getByText("Appeal deadline on the letter")).toBeVisible();
+  await expect(page.getByText("2026-08-30")).toBeVisible();
+
+  await page.waitForTimeout(500);
+  await page.goto(latestLink(email));
+  await expect(page).toHaveURL(/\/dashboard\/cases\//);
+  await expect(page.locator('input[name="insurer"]')).toHaveValue("Northwind Health Plan");
+  await expect(page.locator('input[name="cptCodes"]')).toHaveValue("72148");
+  await expect(page.locator('select[name="denialType"]')).toHaveValue("MEDICAL_NECESSITY");
+
+  await page.fill('input[name="claimRef"]', "NW-2026-0003417");
+  await page.getByRole("button", { name: "Confirm details" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
 });

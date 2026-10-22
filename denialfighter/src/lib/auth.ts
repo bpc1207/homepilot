@@ -15,7 +15,9 @@ const MAX_LINKS_PER_HOUR = 5;
 export type SessionUser = { id: string; email: string; role: "USER" | "ADMIN" | "SUPPORT" };
 
 /** Create and email a single-use magic link. Always resolves the same way to avoid account enumeration. */
-export async function requestLoginLink(emailRaw: string, consent: boolean): Promise<void> {
+const safeRedirect = (p?: string | null) => (p && /^\/[A-Za-z0-9/_-]{0,200}$/.test(p) ? p : null);
+
+export async function requestLoginLink(emailRaw: string, consent: boolean, redirectTo?: string | null): Promise<void> {
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !consent) return;
 
@@ -26,7 +28,7 @@ export async function requestLoginLink(emailRaw: string, consent: boolean): Prom
 
   const { token, hash } = newToken();
   await prisma.loginToken.create({
-    data: { email, tokenHash: hash, consentVersion: CONSENT_VERSION, expiresAt: new Date(Date.now() + LOGIN_TTL_MS) },
+    data: { email, tokenHash: hash, consentVersion: CONSENT_VERSION, redirectTo: safeRedirect(redirectTo), expiresAt: new Date(Date.now() + LOGIN_TTL_MS) },
   });
   const link = `${env().APP_URL}/api/auth/verify?token=${token}`;
   await sendMail({
@@ -37,7 +39,9 @@ export async function requestLoginLink(emailRaw: string, consent: boolean): Prom
 }
 
 /** Consume a magic-link token; returns a session token to set as cookie, or null. */
-export async function consumeLoginToken(token: string, ip?: string | null): Promise<string | null> {
+export type LoginResult = { sessionToken: string; redirectTo: string; isNewUser: boolean };
+
+export async function consumeLoginToken(token: string, ip?: string | null): Promise<LoginResult | null> {
   const hash = sha256Hex(token);
   return prisma.$transaction(async (tx) => {
     // Atomic single use: only one request can flip usedAt from null.
@@ -49,6 +53,7 @@ export async function consumeLoginToken(token: string, ip?: string | null): Prom
     const lt = await tx.loginToken.findUniqueOrThrow({ where: { tokenHash: hash } });
 
     let user = await tx.user.findUnique({ where: { email: lt.email } });
+    const isNewUser = !user;
     if (!user) user = await tx.user.create({ data: { email: lt.email } });
     if (user.deletedAt) return null;
     if (lt.consentVersion) {
@@ -64,7 +69,7 @@ export async function consumeLoginToken(token: string, ip?: string | null): Prom
       data: { userId: user.id, tokenHash: s.hash, expiresAt: new Date(Date.now() + SESSION_TTL_MS) },
     });
     await audit(tx, { userId: user.id, role: user.role, ip }, "AUTH_LOGIN", "User", user.id);
-    return s.token;
+    return { sessionToken: s.token, redirectTo: safeRedirect(lt.redirectTo) ?? "/dashboard", isNewUser };
   });
 }
 

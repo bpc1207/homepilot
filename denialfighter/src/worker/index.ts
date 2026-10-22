@@ -3,8 +3,10 @@ import { prisma } from "../lib/db";
 import { log, errorFields } from "../lib/logger";
 import { env } from "../lib/env";
 import { storage } from "../lib/storage";
+import { handlers } from "../lib/intake";
+import { QUEUES, type JobData } from "../lib/jobs";
 
-const PURGE = "purge-expired-leads";
+const PURGE = QUEUES.PURGE;
 
 /** Delete anonymous Denial Checker uploads past their TTL, including stored objects. */
 export async function purgeExpiredLeads(now = new Date()): Promise<number> {
@@ -33,7 +35,20 @@ async function main() {
       throw new Error(errorFields(err).code); // no message passthrough
     }
   });
-  // Phase 2+: ocr, extract, classify, strategy_letter, packet_pdf. Phase 4: reminders.
+  for (const queue of [QUEUES.INTAKE, QUEUES.CHECKER]) {
+    await boss.createQueue(queue);
+    await boss.work<JobData>(queue, { batchSize: 2 }, async (jobs) => {
+      for (const job of jobs) {
+        try {
+          await handlers[queue](job.data);
+        } catch (err) {
+          log.error("worker.job_failed", err, { queue, jobId: job.id });
+          throw new Error(errorFields(err).code);
+        }
+      }
+    });
+  }
+  // Phase 3: strategy_letter, packet_pdf. Phase 4: reminders.
   log.info("worker.started");
 
   const stop = async () => { await boss.stop(); await prisma.$disconnect(); process.exit(0); };

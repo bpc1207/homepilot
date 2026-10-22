@@ -7,6 +7,7 @@ export type AuditAction =
   | "AUTH_LOGIN" | "AUTH_LOGOUT"
   | "CASE_CREATE" | "CASE_READ" | "CASE_UPDATE" | "CASE_DELETE"
   | "DOCUMENT_UPLOAD" | "DOCUMENT_READ" | "DOCUMENT_DELETE"
+  | "LEAD_CREATE" | "LEAD_READ" | "LEAD_CONVERT"
   | "AUDIT_READ";
 
 type Db = PrismaClient | Prisma.TransactionClient;

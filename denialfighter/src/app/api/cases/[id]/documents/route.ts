@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DocumentKind } from "@prisma/client";
 import { actorFor, getSessionUser } from "@/lib/auth";
-import { addDocument, NotFoundError, UploadError } from "@/lib/phi";
+import { addDocument, NotFoundError, setProcessing, UploadError } from "@/lib/phi";
+import { enqueue, QUEUES } from "@/lib/jobs";
 import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 
@@ -18,7 +19,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const kind = (Object.values(DocumentKind) as string[]).includes(kindRaw) ? (kindRaw as DocumentKind) : "OTHER";
     if (!(file instanceof File)) return back("?upload=bad");
     if (file.size > env().MAX_UPLOAD_BYTES) return back("?upload=bad");
-    await addDocument(await actorFor(user), id, kind, Buffer.from(await file.arrayBuffer()));
+    const actor = await actorFor(user);
+    const doc = await addDocument(actor, id, kind, Buffer.from(await file.arrayBuffer()));
+    if (kind === "DENIAL_LETTER") {
+      await setProcessing(actor, id, "PROCESSING");
+      await enqueue(QUEUES.INTAKE, { caseId: id, docId: doc.id });
+    }
     return back();
   } catch (err) {
     if (err instanceof UploadError) return back("?upload=bad");

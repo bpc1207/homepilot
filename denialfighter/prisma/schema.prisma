@@ -49,6 +49,14 @@ enum PaymentKind {
   SUCCESS_FEE
 }
 
+enum ProcessingState {
+  IDLE
+  PROCESSING
+  READY
+  UNSUPPORTED
+  FAILED
+}
+
 enum ConsentKind {
   TERMS
   PRIVACY
@@ -56,14 +64,14 @@ enum ConsentKind {
 }
 
 model User {
-  id         String          @id @default(cuid())
-  email      String          @unique
-  role       Role            @default(USER)
-  createdAt  DateTime        @default(now())
-  deletedAt  DateTime?
-  sessions   Session[]
-  cases      Case[]
-  consents   ConsentRecord[]
+  id        String          @id @default(cuid())
+  email     String          @unique
+  role      Role            @default(USER)
+  createdAt DateTime        @default(now())
+  deletedAt DateTime?
+  sessions  Session[]
+  cases     Case[]
+  consents  ConsentRecord[]
 }
 
 model LoginToken {
@@ -71,6 +79,8 @@ model LoginToken {
   email          String
   tokenHash      String    @unique
   consentVersion String?
+  /// Relative in-app path to land on after sign-in (validated on use).
+  redirectTo     String?
   expiresAt      DateTime
   usedAt         DateTime?
   createdAt      DateTime  @default(now())
@@ -79,12 +89,12 @@ model LoginToken {
 }
 
 model Session {
-  id         String   @id @default(cuid())
-  userId     String
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -102,52 +112,59 @@ model ConsentRecord {
 
 /// Anonymous Denial Checker upload; purged at expiresAt unless converted to a Case.
 model Lead {
-  id              String   @id @default(cuid())
-  email           String?
-  storageKey      String?
-  wrappedKey      String?
+  /// Random 192-bit token (acts as the capability to view the anonymous result).
+  id               String          @id
+  email            String?
+  consentVersion   String?
+  ipHash           String?
+  status           ProcessingState @default(PROCESSING)
+  storageKey       String?
+  wrappedKey       String?
   checkerResultEnc String?
-  expiresAt       DateTime
-  convertedCaseId String?
-  createdAt       DateTime @default(now())
+  expiresAt        DateTime
+  convertedCaseId  String?
+  createdAt        DateTime        @default(now())
 
   @@index([expiresAt])
+  @@index([ipHash, createdAt])
 }
 
 model Case {
-  id             String      @id @default(cuid())
-  userId         String
-  status         CaseStatus  @default(DRAFT)
-  denialType     DenialType?
-  appealDeadline DateTime?
+  id                String               @id @default(cuid())
+  userId            String
+  status            CaseStatus           @default(DRAFT)
+  denialType        DenialType?
+  processingState   ProcessingState      @default(IDLE)
+  unsupportedReason String?
+  appealDeadline    DateTime?
   /// Per-case data key wrapped by KMS (or local master key in dev). Null after deletion (crypto-shred).
-  dataKeyWrapped String?
-  outcomeConsent Boolean     @default(false)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents      Document[]
-  extraction     Extraction?
-  appeals        Appeal[]
-  reminders      Reminder[]
-  events         CaseEvent[]
-  payments       Payment[]
-  successFee     SuccessFeeAgreement?
+  dataKeyWrapped    String?
+  outcomeConsent    Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents         Document[]
+  extraction        Extraction?
+  appeals           Appeal[]
+  reminders         Reminder[]
+  events            CaseEvent[]
+  payments          Payment[]
+  successFee        SuccessFeeAgreement?
 
   @@index([userId])
 }
 
 model Document {
-  id          String       @id @default(cuid())
-  caseId      String
-  kind        DocumentKind
-  storageKey  String
-  mime        String
-  sizeBytes   Int
-  sha256      String
-  ocrTextEnc  String?
-  createdAt   DateTime     @default(now())
-  case        Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  caseId     String
+  kind       DocumentKind
+  storageKey String
+  mime       String
+  sizeBytes  Int
+  sha256     String
+  ocrTextEnc String?
+  createdAt  DateTime     @default(now())
+  case       Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId])
 }
@@ -182,12 +199,12 @@ model Appeal {
 }
 
 model ChecklistItem {
-  id        String  @id @default(cuid())
-  appealId  String
-  label     String
-  done      Boolean @default(false)
+  id         String  @id @default(cuid())
+  appealId   String
+  label      String
+  done       Boolean @default(false)
   documentId String?
-  appeal    Appeal  @relation(fields: [appealId], references: [id], onDelete: Cascade)
+  appeal     Appeal  @relation(fields: [appealId], references: [id], onDelete: Cascade)
 
   @@index([appealId])
 }

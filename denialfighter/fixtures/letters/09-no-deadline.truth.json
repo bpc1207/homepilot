@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Maple Grove Insurance",
+    "planType": "EMPLOYER_GROUP",
+    "claimRef": "MG-2026-90871",
+    "service": "MRI brain with and without contrast",
+    "cptCodes": [
+      "70553"
+    ],
+    "icdCodes": [
+      "G43.909"
+    ],
+    "denialDate": "2026-07-15",
+    "appealDeadline": null,
+    "amountDeniedCents": 295000
+  },
+  "denialType": "MEDICAL_NECESSITY",
+  "secondary": [],
+  "unsupported": false
+}

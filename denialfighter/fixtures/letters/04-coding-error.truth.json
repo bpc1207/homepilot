@@ -1,0 +1,21 @@
+{
+  "fields": {
+    "insurer": "Harborview Assurance",
+    "planType": "INDIVIDUAL_OTHER",
+    "claimRef": "HV-5521-0090",
+    "service": "Comprehensive metabolic panel",
+    "cptCodes": [
+      "80053",
+      "80048"
+    ],
+    "icdCodes": [
+      "Z00.00"
+    ],
+    "denialDate": "2026-05-09",
+    "appealDeadline": "2026-11-05",
+    "amountDeniedCents": 21200
+  },
+  "denialType": "CODING_ERROR",
+  "secondary": [],
+  "unsupported": false
+}

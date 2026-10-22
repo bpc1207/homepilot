@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Lakeshore Benefits Plan",
+    "planType": "EMPLOYER_GROUP",
+    "claimRef": "LB-2026-554",
+    "service": "Hearing aids, bilateral",
+    "cptCodes": [
+      "V5261"
+    ],
+    "icdCodes": [
+      "H90.3"
+    ],
+    "denialDate": "2026-06-02",
+    "appealDeadline": "2026-11-29",
+    "amountDeniedCents": 320000
+  },
+  "denialType": "COVERAGE_EXCLUSION",
+  "secondary": [],
+  "unsupported": false
+}

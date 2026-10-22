@@ -1,0 +1,27 @@
+Northwind Health Plan
+PO Box 5501, Springfield, ST 00001
+Member Services: 800-555-0142
+
+Date of Denial: March 3, 2026
+
+Dear Jordan Sample,
+
+We have reviewed your claim and are unable to approve payment.
+
+Member ID: NWH-000-1111-01
+Plan: Employer group health plan (ERISA)
+Claim Number: NW-2026-0003417
+Service: MRI lumbar spine without contrast
+CPT/HCPCS code(s): 72148
+ICD-10 diagnosis code(s): M54.16
+Amount denied: $1,840.00
+
+Reason for denial: The requested service is not medically necessary. Based on our clinical criteria, at least six weeks of conservative therapy must be documented before advanced imaging of the lumbar spine, and no such documentation was received.
+
+You have the right to appeal this decision. Your appeal must be submitted in writing on or before August 30, 2026.
+You may include any additional information, such as medical records or a statement from your doctor.
+You may request, free of charge, copies of the documents and criteria used to make this decision.
+
+Sincerely,
+Appeals and Grievances Department
+Northwind Health Plan

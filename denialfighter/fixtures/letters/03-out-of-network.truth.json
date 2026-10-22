@@ -1,0 +1,20 @@
+{
+  "fields": {
+    "insurer": "Summit Mutual Health",
+    "planType": "EMPLOYER_GROUP",
+    "claimRef": "SM-90-448812",
+    "service": "Specialist office visit, established patient",
+    "cptCodes": [
+      "99214"
+    ],
+    "icdCodes": [
+      "E11.9"
+    ],
+    "denialDate": "2026-02-20",
+    "appealDeadline": "2026-08-19",
+    "amountDeniedCents": 38500
+  },
+  "denialType": "OUT_OF_NETWORK",
+  "secondary": [],
+  "unsupported": false
+}

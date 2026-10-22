@@ -18,6 +18,8 @@ const schema = z.object({
   MAIL_FROM: z.string().default("DenialFighter <no-reply@denialfighter.test>"),
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().default(1025),
+  /** pgboss: enqueue to the worker. inline: run in-process (local/e2e only). */
+  JOBS_DRIVER: z.enum(["pgboss", "inline"]).default("pgboss"),
   OCR_DRIVER: z.enum(["mock", "textract"]).default("mock"),
   LLM_DRIVER: z.enum(["mock", "bedrock", "anthropic"]).default("mock"),
   LLM_MODEL: z.string().default("mock-model"),

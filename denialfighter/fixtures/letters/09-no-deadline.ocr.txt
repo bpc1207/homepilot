@@ -1,0 +1,27 @@
+Maple Grove Insurance
+52 Test Court, Elmwood, ST 00009
+Member Services: 800-555-0142
+
+Date of Denial: July 15, 2026
+
+Dear Parker Fictional,
+
+We have reviewed your claim and are unable to approve payment.
+
+Member ID: MGI-050-3434-03
+Plan: Employer group health plan
+Claim Number: MG-2026-90871
+Service: MRI brain with and without contrast
+CPT/HCPCS code(s): 70553
+ICD-10 diagnosis code(s): G43.909
+Amount denied: $2,950.00
+
+Reason for denial: This service does not meet clinical criteria for medical necessity under your plan's imaging guidelines.
+
+You have the right to appeal this decision by submitting a written request to the address above.
+You may include any additional information, such as medical records or a statement from your doctor.
+You may request, free of charge, copies of the documents and criteria used to make this decision.
+
+Sincerely,
+Appeals and Grievances Department
+Maple Grove Insurance

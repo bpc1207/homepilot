@@ -1,0 +1,22 @@
+{
+  "fields": {
+    "insurer": "Redwood Community Health",
+    "planType": "EMPLOYER_GROUP",
+    "claimRef": "RW-60-31415",
+    "service": "Physical therapy, therapeutic exercise",
+    "cptCodes": [
+      "97110"
+    ],
+    "icdCodes": [
+      "M25.511"
+    ],
+    "denialDate": "2026-04-02",
+    "appealDeadline": "2026-09-29",
+    "amountDeniedCents": 112000
+  },
+  "denialType": "PRIOR_AUTH_MISSING",
+  "secondary": [
+    "MEDICAL_NECESSITY"
+  ],
+  "unsupported": false
+}
